@@ -17,8 +17,33 @@ report = sr.StatsReport()
 # Create a simple data set summary for the console
 for thisLabel in labels: # for each column, report stats
     thisCol = df[thisLabel]
-    try:
-        report.addCol(thisLabel, thisCol)
-    except ValueError:
+
+    report.addCol(thisLabel, thisCol)
+
+print(report.to_string())
+report.statsdf.to_excel("Report_Andrew_Garcia.xlsx")
+
+covariance = df.cov()
+correlation = df.corr()
+covariance.to_excel("Covariance_Andrew_Garcia.xlsx")
+correlation.to_excel("Correlation_Andrew_Garcia.xlsx")
+
+
+labels = correlation.columns
+for thisLabel in labels:
+    if thisLabel == "member":    
         pass
-    print(report.to_string())
+    else:
+        thisCol = correlation[thisLabel]
+        v = thisCol.sort_values()
+        max_v = v[-2]
+        min_v = v[0]
+        min_v_abs = abs(min_v)
+        if max_v > min_v_abs:
+            max_overall = max_v
+            print(f"\n Label: {thisLabel} - Highest: {max_v}")
+        elif min_v_abs > max_v:
+            max_overall = min_v_abs
+            print(f"\n Label: {thisLabel} - Highest: {min_v}")
+
+    
