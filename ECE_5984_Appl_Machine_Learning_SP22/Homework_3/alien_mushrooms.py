@@ -20,8 +20,6 @@ print('File {0} is of size {1}'.format(full_path, df.shape))
 labels = df.columns
 
 
--(10/24)*((7/10)*math.log2(7/10) + (3/10)*math.log2(3/10)) - (14/24)*((9/14)*math.log2(9/14) + (5/14)*math.log2(5/14))
-
 import pydotplus 
 import collections 
 # for a two-class tree, call this function like this: 
