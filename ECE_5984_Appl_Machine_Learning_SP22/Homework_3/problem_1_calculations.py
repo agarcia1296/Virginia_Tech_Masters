@@ -40,7 +40,7 @@ def rem_entropy (d_feature, target):
     
     final_sum = p_true*(-1*true_entropy) + p_false*(-1*false_entropy)
     return final_sum
-
+#%%
 # Create Full Path - This is the OS agnostic way of doing so
 dir_name = os.getcwd()
 filename = 'AlienMushrooms.xlsx'
@@ -79,6 +79,49 @@ rem_frilly_hand = -(8/24)*((3/8)*math.log2(3/8) + (5/8)*math.log2(5/8)) - (16/24
 rem_frilly = rem_entropy(frilly, edible)
 ig_frilly = H - rem_frilly
 
+print(f'[Entropy] {H:0.4}')
+print(f'[Remainder] \nRem White: {rem_white:0.4} \nRem Tall: {rem_tall:0.4} \nRem Frilly: {rem_frilly:0.4}')
+print(f'[Information Gain] \nIG White: {ig_white:0.4} \nIG Tall: {ig_tall:0.4} \nIG Frilly: {ig_frilly:0.4}')
    
+#%% Decision Tree after is Frilly?
+leaf1_df = df[frilly]
+leaf1_edible = leaf1_df["Edible"] == "T" 
+leaf1_H = -1*entropy(leaf1_edible)
+print(f"[Entroypy Frilly True] {leaf1_H:0.4}")
 
+rem_white_leaf1 = rem_entropy(leaf1_df["White"] ==1, leaf1_edible)
+rem_tall_leaf1 = rem_entropy(leaf1_df["Tall"] ==1, leaf1_edible)
+IG_white_leaf_1 = leaf1_H - rem_white_leaf1
+IG_tall_leaf_1 = leaf1_H - rem_tall_leaf1
+
+leaf2_df = df[~frilly]
+leaf2_edible = leaf2_df["Edible"] == "T" 
+leaf2_H = -1*entropy(leaf2_edible)
+print(f"[Entroypy Frilly False] {leaf2_H:0.4}")
+
+rem_white_leaf2 = rem_entropy(leaf2_df["White"] ==1, leaf2_edible)
+rem_tall_leaf2 = rem_entropy(leaf2_df["Tall"] ==1, leaf2_edible)
+IG_white_leaf_2 = leaf2_H - rem_white_leaf2
+IG_tall_leaf_2 = leaf2_H - rem_tall_leaf2
+
+#%% Decision Tree after is Frilly and is White
+leaf3_df = leaf1_df[leaf1_df["White"]==1]
+leaf3_edible = leaf3_df["Edible"] == "T" 
+leaf3_H = -1*entropy(leaf3_edible)
+
+
+leaf4_df = leaf1_df[~leaf1_df["White"]==1]
+leaf4_edible = leaf4_df["Edible"] == "T" 
+leaf4_H = -1*entropy(leaf4_edible)
+
+
+#%% Decision Tree after is Frilly and is Tall
+leaf5_df = leaf2_df[leaf2_df["Tall"]==1]
+leaf5_edible = leaf5_df["Edible"] == "T" 
+leaf5_H = -1*entropy(leaf5_edible)
+
+
+leaf6_df = leaf2_df[~leaf2_df["Tall"]==1]
+leaf6_edible = leaf5_df["Edible"] == "T" 
+leaf6_H = -1*entropy(leaf6_edible)
     
