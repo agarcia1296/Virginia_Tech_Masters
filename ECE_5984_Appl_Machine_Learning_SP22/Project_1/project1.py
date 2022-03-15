@@ -12,7 +12,7 @@ from tqdm import tqdm
 # Create Full Path - This is the OS agnostic way of doing so
 dir_name = os.getcwd()
 filename = 'USW00023066.csv'
-full_path = os.path.join(dir_name, filename, filename)
+full_path = os.path.join(dir_name, filename)
 
 #
 # Create the Main Data Frame
@@ -34,7 +34,7 @@ for thisLabel in tqdm(labels): # for each column, report stats
     report.addCol(thisLabel, thisCol)
 
 print(report.to_string())
-report.statsdf.to_excel("Report_Project1_RAW_DATA.xlsx")
+report.statsdf.to_excel("Quality_Report_Before_Prep.xlsx")
 
 #%%
 def get_unique_column_values(df):
@@ -53,26 +53,23 @@ print(f"List of Dates: {headers_unique['DATE']}")
 
 #%% Data Preperation - THIS TAKES SEVERAL MINUTES
 
-def prep_data(df_main, df_prep, headers_unique):    
+def prep_data(df, df_out, headers_unique):    
     """
     Extract Values for Elements and insert into df_prep
     """
     index_ = 0 
     for date in tqdm(headers_unique['DATE']):
-        date_idx = df_main['DATE'] == date
-        df_by_date = df_main[date_idx]
-        df_prep.loc[index_, 'DATE'] = date 
+        date_idx = df['DATE'] == date
+        df_by_date = df[date_idx]
+        df_out.loc[index_, 'DATE'] = date 
         for idx in df_by_date['ELEMENT'].index:
-            df_prep.loc[index_, df_by_date['ELEMENT'][idx]] = df_by_date['VALUE1'][idx]
+            df_out.loc[index_, df_by_date['ELEMENT'][idx]] = df_by_date['VALUE1'][idx]
         index_ = index_+1
     
 
 df_prep = pd.DataFrame(columns = ['DATE', *headers_unique['ELEMENT']])
 prep_data(df_main, df_prep, headers_unique)
 
-df_ex = df_main.head(10)
-df_prep_ = pd.DataFrame(columns = ['DATE', *headers_unique['ELEMENT']])
-prep_data(df_ex, df_prep_, headers_unique)
 #%%
 #
 # Create Columns - PRECIPFLAG and PRECIPAMT 
@@ -91,30 +88,56 @@ for idx in tqdm(df_prep.index):
         df_prep.loc[idx-1, 'NEXTDAYPRECIPFLAG'] = df_prep.loc[idx, 'PRECIPFLAG']
         df_prep.loc[idx-1, 'NEXTDAYPRECIPAMT'] = df_prep.loc[idx, 'PRECIPAMT']
 
-# Output to Excel
-df_prep.to_excel('project1_prepped.xlsx')
-
 #%% Generating a Report
-labels = df_prep.columns
-report = StatsReport()
+labels_post = df_prep.columns
+report_post = StatsReport()
 
 # Create a simple data set summary for the console
-for thisLabel in tqdm(labels): # for each column, report stats
+for thisLabel in tqdm(labels_post): # for each column, report stats
     thisCol = df_prep[thisLabel]
-    report.addCol(thisLabel, thisCol)
+    report_post.addCol(thisLabel, thisCol)
 
 #print(report.to_string())
-report.statsdf.to_excel("Report_Project1_post.xlsx")
+report_post.statsdf.to_excel("Quality_Report_Post_Prep.xlsx")
+
+#%% Sus out Bad Elements
+from utils_project1 import replace_missing_values_avg
+
+df_final = df_prep.copy()
+
+temp_report_df = report_post.statsdf
+
+for element in tqdm(labels_post):
+    if temp_report_df[element][10] > len(df_prep)*0.1: # Weeding out Elements that have more than 10% of missing values
+        df_prep_final = df_final.drop(element)
+    elif temp_report_df[element][10] < len(df_prep)*0.1:
+        avg_value = temp_report_df[element][1]
+        replace_missing_values_avg(df_final, element, avg_value)
+
+#%%
+# Run Quality Report and Output Data to Excel
+df_final.to_excel('Weather_Data_Final.xlsx')
+
+labels_final = df_final.columns
+report_final = StatsReport()
+
+# Create a simple data set summary for the console
+for thisLabel in tqdm(labels_final): # for each column, report stats
+    thisCol = df_final[thisLabel]
+    report_final.addCol(thisLabel, thisCol)
+
+#print(report.to_string())
+report_final.statsdf.to_excel("Quality_Report_Final.xlsx")
 
 #%% Setting up Training Data
 from sklearn import linear_model
 from sklearn.model_selection import train_test_split
 import numpy as np
 # Data
-X_labels = df_prep.columns.drop(['NEXTDAYPRECIPFLAG','NEXTDAYPRECIPAMT'])
-X = df_prep[X_labels]
+X_labels = df_final.columns.drop(['NEXTDAYPRECIPFLAG','NEXTDAYPRECIPAMT'])
+X = df_final[X_labels]
 # Target
-y = df_prep.loc[:, ['NEXTDAYPRECIPFLAG','NEXTDAYPRECIPAMT']]
+y = df_final.loc[:, ['NEXTDAYPRECIPFLAG','NEXTDAYPRECIPAMT']]
 
 # 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, train_size=0.7,random_state=1, shuffle=True, stratify=None)
@@ -131,9 +154,6 @@ print(np.mean(y_test))
 #%% Decidion Tree - Prediction of Rain on Next Day
 from utils_project1 import writegraphtofile
 from sklearn import tree
-
-X_train.dropna()
-y_train.dropna()
 
 clf_entropy = tree.DecisionTreeClassifier(criterion = "entropy", max_depth = 4)
 clf_entropy = clf_entropy.fit(X_train, y_train)

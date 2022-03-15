@@ -5,10 +5,23 @@ Created on Thu Mar 10 20:08:19 2022
 @author: agarc
 """
 
-import pandas
+import pandas as pd
 from sklearn import tree
 import pydotplus 
 import collections 
+
+def replace_missing_values_avg(df, column_name, avg_value):
+    """
+    This function will take in a data frame and replace a missing value with
+    the average.
+    """
+    missing_values_bool = df[column_name].isna()
+    for idx in range(len(missing_values_bool)):
+        if missing_values_bool[idx] == True:
+            df.loc[idx, column_name] = avg_value
+            print(f"Value Replaced for {column_name} at {idx}")
+        elif missing_values_bool[idx] == False:
+            pass
 
 # for a two-class tree, call this function like this: 
 # writegraphtofile(clf, ('F', 'T'), dirname+graphfilename) 
@@ -30,9 +43,14 @@ def writegraphtofile(clf, feature_labels, classnames, pathname):
             dest.set_fillcolor(colors[i])
     graph.write_png(pathname)
 
+class Weather_Data_CSV:
+    def __init__(self, csv_path):
+        self.data_raw = pd.read_csv(csv_path)
+
+
 class StatsReport:
     def __init__(self):
-        self.statsdf = pandas.DataFrame()
+        self.statsdf = pd.DataFrame()
         self.statsdf['stat'] = ['cardinality', 'mean', 'median', 'n_at_median', 'mode', 'n_at_mode', 'stddev', 'min', 'max', 'nzero', 'nmissing']
         pass
     
