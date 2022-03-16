@@ -70,7 +70,7 @@ def prep_data(df, df_out, headers_unique):
 df_prep = pd.DataFrame(columns = ['DATE', *headers_unique['ELEMENT']])
 prep_data(df_main, df_prep, headers_unique)
 
-#%%
+#%% Create Target Columns
 #
 # Create Columns - PRECIPFLAG and PRECIPAMT 
 # Create Target Columns - NEXTDAYPRECIPFLAG and NEXTDAYPRECIPAMT
@@ -109,7 +109,7 @@ temp_report_df = report_post.statsdf
 
 for element in tqdm(labels_post):
     if temp_report_df[element][10] > len(df_prep)*0.1: # Weeding out Elements that have more than 10% of missing values
-        df_prep_final = df_final.drop(element)
+        df_final = df_final.drop(columns = [element])
     elif temp_report_df[element][10] < len(df_prep)*0.1:
         avg_value = temp_report_df[element][1]
         replace_missing_values_avg(df_final, element, avg_value)
@@ -133,36 +133,42 @@ report_final.statsdf.to_excel("Quality_Report_Final.xlsx")
 from sklearn import linear_model
 from sklearn.model_selection import train_test_split
 import numpy as np
+
 # Data
 X_labels = df_final.columns.drop(['NEXTDAYPRECIPFLAG','NEXTDAYPRECIPAMT'])
 X = df_final[X_labels]
+
 # Target
-y = df_final.loc[:, ['NEXTDAYPRECIPFLAG','NEXTDAYPRECIPAMT']]
+y_precip_flag = df_final.loc[:, ['NEXTDAYPRECIPFLAG']]
+y_precip_amt = df_final.loc[:, ['NEXTDAYPRECIPAMT']]
 
-# 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, train_size=0.7,random_state=1, shuffle=True, stratify=None)
-
-print(X_train.shape)
-print(X_test.shape)
-print(y_train.shape)
-print(y_test.shape)
-
-print(np.mean(X_train))
-print(np.mean(X_test))
-print(np.mean(y_train))
-print(np.mean(y_test))
-#%% Decidion Tree - Prediction of Rain on Next Day
+#%% Decision Tree - Next Day Precip Flag
 from utils_project1 import writegraphtofile
 from sklearn import tree
 
-clf_entropy = tree.DecisionTreeClassifier(criterion = "entropy", max_depth = 4)
-clf_entropy = clf_entropy.fit(X_train, y_train)
-print("Training set score = ", clf_entropy.score(X_train, y_train))
-print("Test set score = ", clf_entropy.score(X_test, y_test))
+# Create Testing and Training data
+X_train, X_test, y_train, y_test = train_test_split(X, y_precip_flag, test_size=0.3, train_size=0.7, random_state=1, shuffle=True, stratify=None)
 
-path_name = os.path.join(dir_name, "FlareData_DecisionTree_Entropy.png")
-writegraphtofile(clf_entropy, feature_labels, (str(target_unique[0]), str(target_unique[1]), str(target_unique[2])), path_name)
+# Create Decision Tree
+clf_entropy = tree.DecisionTreeClassifier(criterion = "entropy", max_depth = 4)
+clf_entropy = clf_entropy.fit(X_train, y_train['NEXTDAYPRECIPFLAG'].reset_index(drop = True))
+print("Training set score = ", clf_entropy.score(X_train, y_train['NEXTDAYPRECIPFLAG']))
+print("Test set score = ", clf_entropy.score(X_test, y_test['NEXTDAYPRECIPFLAG']))
+
+# Create Graphic
+target_unique = y_precip_flag['NEXTDAYPRECIPFLAG'].unique()
+path_name = os.path.join(dir_name, "Weather_Data_DecisionTree_Entropy.png")
+writegraphtofile(clf_entropy, X_labels, (str(target_unique[0]), str(target_unique[1])), path_name)
 tree.export_graphviz(clf_entropy)
+
+#%% 
+
+
+# Next Day Precip Amt
+X_train, X_test, y_train, y_test = train_test_split(X, y_precip_amt, test_size=0.3, train_size=0.7,random_state=1, shuffle=True, stratify=None)
+
+
+
 
 
 
