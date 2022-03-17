@@ -111,7 +111,10 @@ for element in tqdm(labels_post):
     if temp_report_df[element][10] > len(df_prep)*0.1: # Weeding out Elements that have more than 10% of missing values
         df_final = df_final.drop(columns = [element])
     elif temp_report_df[element][10] < len(df_prep)*0.1:
-        avg_value = temp_report_df[element][1]
+        if element == 'NEXTDAYPRECIPAMT' or element == 'NEXTDAYPRECIPFLAG':
+            avg_value = 0
+        else:
+            avg_value = temp_report_df[element][1]
         replace_missing_values_avg(df_final, element, avg_value)
 
 #%%
@@ -151,7 +154,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y_precip_flag, test_size=
 
 # Create Decision Tree
 clf_entropy = tree.DecisionTreeClassifier(criterion = "entropy", max_depth = 4)
-clf_entropy = clf_entropy.fit(X_train, y_train['NEXTDAYPRECIPFLAG'].reset_index(drop = True))
+clf_entropy = clf_entropy.fit(X_train, np.array(y_train['NEXTDAYPRECIPFLAG']))
 print("Training set score = ", clf_entropy.score(X_train, y_train['NEXTDAYPRECIPFLAG']))
 print("Test set score = ", clf_entropy.score(X_test, y_test['NEXTDAYPRECIPFLAG']))
 
