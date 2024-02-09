@@ -1,19 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb  7 02:29:06 2024
 
-@author: agarc
-"""
 import pandas as pd
 from tqdm import tqdm
 
 def add_frame_count_to_df(df):
     ''' Adding Final Position to DF '''
-    # Add 'last value' column and initialize with NaN
-    df['frame'] = float('NaN')
-    #df['final_pos_x'] = float('NaN')
-    #df['final_pos_y'] = float('NaN')
-    #df['final_pos_z'] = float('NaN')
+    # Add addtinoal columns and initialize with NaN
+    df['frame'] = float('NaN')   
+    df['final_pos_x'] = float('NaN')
+    df['final_pos_y'] = float('NaN')
+    df['final_pos_z'] = float('NaN')
     
     # Initialize vars
     full_ittr_indexes = []
@@ -28,14 +23,15 @@ def add_frame_count_to_df(df):
         # Last Index
         elif index == df.index[-1]:
             current_iteration = row['ittr']
-            #last_value_x = df['curr_pos_x'][index]
-            #last_value_y = df['curr_pos_y'][index]
-            #last_value_z = df['curr_pos_z'][index]
+            full_ittr_indexes.append(index)
+            last_value_x = df['curr_pos_x'][index]
+            last_value_y = df['curr_pos_y'][index]
+            last_value_z = df['curr_pos_z'][index]
             for n, idx in enumerate(full_ittr_indexes):
                 df.at[idx, 'frame'] = n
-                #df.at[idx, 'final_pos_x'] = last_value_x
-                #f.at[idx, 'final_pos_y'] = last_value_y
-                #df.at[idx, 'final_pos_z'] = last_value_z
+                df.at[idx, 'final_pos_x'] = last_value_x
+                df.at[idx, 'final_pos_y'] = last_value_y
+                df.at[idx, 'final_pos_z'] = last_value_z
        
         # All other cases
         else:
@@ -45,86 +41,76 @@ def add_frame_count_to_df(df):
                 full_ittr_indexes.append(index)
             # When ittr changes value
             elif current_iteration != last_iteration:   
-                #last_value_x = df['curr_pos_x'][index-1]
-                #last_value_y = df['curr_pos_y'][index-1]
-                #last_value_z = df['curr_pos_z'][index-1]
+                last_value_x = df['curr_pos_x'][index-1]
+                last_value_y = df['curr_pos_y'][index-1]
+                last_value_z = df['curr_pos_z'][index-1]
                 for n, idx in enumerate(full_ittr_indexes):
                     df.at[idx, 'frame'] = n
-                    #df.at[idx, 'final_pos_x'] = last_value_x
-                    #df.at[idx, 'final_pos_y'] = last_value_y
-                    #df.at[idx, 'final_pos_z'] = last_value_z
+                    df.at[idx, 'final_pos_x'] = last_value_x
+                    df.at[idx, 'final_pos_y'] = last_value_y
+                    df.at[idx, 'final_pos_z'] = last_value_z
                 full_ittr_indexes = []
                 last_iteration = current_iteration
                 full_ittr_indexes.append(index)
     return df
 
+def get_previous_frame_value(df, iteration, frame, column, num_frames_before):
+    # Get the frame number of the previous frame
+    previous_frame = frame - num_frames_before
+    
+    # Check if the previous frame is within the same iteration
+    if previous_frame >= 1:
+        previous_value = df[(df['iteration'] == iteration) & (df['frame'] == previous_frame)][column].values
+        if len(previous_value) > 0:
+            return previous_value[0]
+    
+    # If the previous frame is not found in the same iteration, return NaN
+    return float('NaN')
+
+def add_previous_frames_data(df):
+    ''' Add data from 1 2 and 3 frames before for rows where the data is not NaN '''
+    for i in range(1,4):
+        for col in ['velocity_x', 'velocity_y', 'velocity_z', 'curr_pos_x', 'curr_pos_y', 'curr_pos_z']:
+            new_col_name = f'{col}_{i}framesbefore'
+            df[new_col_name] = df[col].shift(i)
+    
+    # Itterate over rows
+    for index, row in tqdm(df.iterrows()):
+        frame = row['frame']
+        ittr = row['ittr']
+        frame_0_of_ittr = df[(df['ittr'] == ittr) & (df['frame'] == 0)]
+        # First Frame
+        if frame == 0:
+            for i in range(1,4):
+                for col in ['velocity_x', 'velocity_y', 'velocity_z', 'curr_pos_x', 'curr_pos_y', 'curr_pos_z']:
+                    new_col_name = f'{col}_{i}framesbefore'
+                    row[new_col_name] = row[col]
+                    df.iloc[index] = row
+        # Second Frame
+        if frame == 1:
+            for i in range(2,4):
+                for col in ['velocity_x', 'velocity_y', 'velocity_z', 'curr_pos_x', 'curr_pos_y', 'curr_pos_z']:
+                    new_col_name = f'{col}_{i}framesbefore'
+                    row[new_col_name] = frame_0_of_ittr[col].to_numpy()
+                    df.iloc[index] = row
+        # Third Frame
+        if frame == 2:
+            for i in range(3,4):
+                for col in ['velocity_x', 'velocity_y', 'velocity_z', 'curr_pos_x', 'curr_pos_y', 'curr_pos_z']:
+                    new_col_name = f'{col}_{i}framesbefore'
+                    row[new_col_name] = frame_0_of_ittr[col].to_numpy()
+                    df.iloc[index] = row
+        
+    return df
+
 
 df = pd.read_csv('training_data/ittr_df.csv', index_col=0)
 df = add_frame_count_to_df(df)
+df = df.drop(columns = ['force_x', 'force_y', 'force_z'])
+#df_filtered = df[df['frame'] > 3]
 
-#------------------------------------------------------------------------------
-#%% Get all ittr to be same size
+df_with_previous_frames_data = add_previous_frames_data(df)
+df_with_previous_frames_data['image_path'] = df_with_previous_frames_data.apply(lambda row: f"training_data/ittr{int(row['ittr']):03}/frame_{int(row['frame']):03}.jpg", axis=1)
+df_with_previous_frames_data.to_csv('training_data/FINAL_DF_WITH_PREVIOUS_DATA.csv')
 
-# Find the indices where the sequence restarts to 0
-restart_indices = df[df['frame'] == 0].index.tolist()
 
-# Calculate the smallest number of frames before the sequence restarts
-smallest_frames = float('inf')  # Initialize with infinity
-for i in range(1, len(restart_indices)):
-    consecutive_frames = restart_indices[i] - restart_indices[i-1] - 1
-    if consecutive_frames < smallest_frames:
-        smallest_frames = consecutive_frames
-
-print("Smallest number of frames before restart:", smallest_frames)
-
-desired_frames = smallest_frames
-
-for ittr in tqdm(range(df['ittr'].max() + 1)):
-    # DF for all rows in same ittr
-    filtered_df = df[df['ittr'] == ittr]
-    frames_to_remove = len(filtered_df) - desired_frames
-    
-    # Don't do anything if no frames need to be removed
-    if frames_to_remove == 0:
-        continue
-    
-    # Remove every odd index until total frames dropped is met
-    total_removed = 0
-    for index_to_drop in filtered_df.index:
-        if index_to_drop % 2 == 1:
-            continue
-        elif index_to_drop % 1 != 1:
-            df = df.drop(index_to_drop)
-            total_removed += 1
-            if total_removed == frames_to_remove:
-                break
-df = df.reset_index(drop = True)
-#df = add_frame_count_to_df(df)
-
-#%% Get all ittr in one row
-
-changing_columns = ['frame', 'velocity_x', 'velocity_y', 'velocity_z', 'curr_pos_x', 'curr_pos_y', 'curr_pos_z']
-non_changing_columns = ['ittr', 'force_x','force_y', 'force_z']
-df_final = pd.DataFrame(columns = non_changing_columns)
-
-columns = non_changing_columns.copy()
-for index in range(21):
-    numbered_columns_list = [value + f'_{index}' for value in changing_columns]
-    columns.extend(numbered_columns_list)
-
-df_final = pd.DataFrame(columns = columns)
-
-for row, ittr in tqdm(enumerate(range(df['ittr'].max() + 1))):
-    # DF for all rows in same ittr
-    filtered_df = df[df['ittr'] == ittr]
-    first_index = filtered_df.index[0]
-    init_df = filtered_df.loc[first_index, non_changing_columns].tolist()  # Extract first row of non-changing columns
-    for index in filtered_df.index:
-        frame_data = filtered_df.loc[index, changing_columns].tolist()
-        init_df.extend(frame_data)
-        #frame_data = frame_data.rename(index=dict(zip(frame_data.index, numbered_columns_list)))
-        #df_final.loc[row] = frame_data
-    
-    df_final.loc[row] = init_df
-
-df_final.to_csv('training_data/FINAL_DF.csv')
